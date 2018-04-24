@@ -16,20 +16,69 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+####################################################################################################
+#   Libraries
+####################################################################################################
+
 from shutil import which
 from os import system, remove
 from shlex import parse as shlex_split
 import subprocess
 
+
+####################################################################################################
+#   Settings
+####################################################################################################
+
+#   Read settings in order: /etc/speak_to_file.conf, $HOME/config/speak_to_file.conf,
+#   $HOME/.speak_to_file.conf, (current dir)/speak_to_file.conf
+
+####################################################################################################
+#   Console interaction
+####################################################################################################
+
 #   GPL Stuff
 gpl_notice = """
-    <program>  Copyright (C) <year>  <name of author>
+    speak_to_file  Radoslav Dimitrov
     This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
     This is free software, and you are welcome to redistribute it
     under certain conditions; type `show c' for details.
 """
 #   TODO: add terminal interaction: https://www.gnu.org/licenses/gpl-3.0.en.html
 
+
+####################################################################################################
+#   Define external software
+####################################################################################################
+
+#   Default behaviour: check if several open-source programs are available and pick one
+#   TTS and conversion command
+supported_readers = ['espeak', 'festival', 'flite', 'mimic']
+supported_converters = ['ffmpeg', 'avconv', 'oggenc', 'opusenc', 'lame']
+installed_readers = lambda(x: which(x), supported_readers)
+installed_converters = lambda(x: which(x), supported_converters)
+
+#   Command-line arguemnts for each supported platform
+reader_args = {
+    'espeak': None,
+    'festival': None,
+    'flite': None,
+    'mimic': None
+}
+converter_args = {
+    'ffmpeg': None,
+    'avconv': None,
+    'oggenc': None,
+    'opusenc': None,
+    'lame': None
+}
+
+
+reader_command = [which('espeak'), '-s', '195', '-f', text_file, '--stdout']
+convert_command = [which('ffmpeg'), '-hide_banner', '-i', 'pipe:0', '-c:v', 'libvorbis', '-q:a', '1', '-ac', '1', '-ar', '22050', '-y', f'{title}.ogg']
+
+
+#   Stdin
 text = []
 while True:
     try:
@@ -43,18 +92,11 @@ text = '\n'.join(text)
 text_file = f'/tmp/{title}'
 open(text_file, 'w').write(text)
 
-#reader_command = which('espeak')
-#convert_command = which('ffmpeg')
-
-#convert_options = f'-hide_banner -i pipe:0 -c:v libvorbis -q:a 1 -ac 1 -ar 22050 -y "{title}".ogg'
-reader_command = [which('espeak'), '-s', '195', '-f', text_file, '--stdout']
-convert_command = [which('ffmpeg'), '-hide_banner', '-i', 'pipe:0', '-c:v', 'libvorbis', '-q:a', '1', '-ac', '1', '-ar', '22050', '-y', f'{title}.ogg']
-
-#system(f'{reader_command} {reader_options} | {convert_command} {convert_options}')
 reader_proc = subprocess.Popen(reader_command, stdout = subprocess.PIPE)
 convert_proc = subprocess.Popen(convert_command, stdin = reader_proc.stdout)
 
 while convert_proc.poll() is None:
     pass
 
+#   Cleanup
 remove(text_file)
