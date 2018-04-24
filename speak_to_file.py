@@ -22,7 +22,7 @@
 
 from shutil import which
 from os import system, remove
-from shlex import parse as shlex_split
+from shlex import quote, split
 import subprocess
 
 
@@ -32,6 +32,15 @@ import subprocess
 
 #   Read settings in order: /etc/speak_to_file.conf, $HOME/config/speak_to_file.conf,
 #   $HOME/.speak_to_file.conf, (current dir)/speak_to_file.conf
+#   TODO: settings
+
+#   Command-line settings
+#   TODO: command-line settings
+#   -h  print help
+#   -l  print license
+#   -o  set out file
+#   --reader set reader name or path
+#   --converter set converter name or path
 
 ####################################################################################################
 #   Console interaction
@@ -55,28 +64,28 @@ gpl_notice = """
 #   TTS and conversion command
 supported_readers = ['espeak', 'festival', 'flite', 'mimic']
 supported_converters = ['ffmpeg', 'avconv', 'oggenc', 'opusenc', 'lame']
-installed_readers = lambda(x: which(x), supported_readers)
-installed_converters = lambda(x: which(x), supported_converters)
+installed_readers = list(filter(lambda x: which(x), supported_readers))
+installed_converters = list(filter(lambda x: which(x), supported_converters))
 
 #   Command-line arguemnts for each supported platform
 reader_args = {
-    'espeak': None,
+    'espeak': '-s 195 --stdout -f',
     'festival': None,
     'flite': None,
     'mimic': None
 }
 converter_args = {
-    'ffmpeg': None,
+    'ffmpeg': '-hide_banner -i pipe:0 -c:v libvorbis -q:a 1 -ac 1 -ar 22050 -y',
     'avconv': None,
     'oggenc': None,
     'opusenc': None,
     'lame': None
 }
+cur_reader = installed_readers[0]
+cur_converter = installed_converters[0]
 
-
-reader_command = [which('espeak'), '-s', '195', '-f', text_file, '--stdout']
-convert_command = [which('ffmpeg'), '-hide_banner', '-i', 'pipe:0', '-c:v', 'libvorbis', '-q:a', '1', '-ac', '1', '-ar', '22050', '-y', f'{title}.ogg']
-
+reader_command = [which('espeak'), '-s', '195', '--stdout', '-f']
+convert_command = [which('ffmpeg'), '-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-c:v', 'libvorbis', '-q:a', '1', '-ac', '1', '-ar', '22050', '-y']
 
 #   Stdin
 text = []
@@ -86,16 +95,19 @@ while True:
     except EOFError:
         break
 
-text = list(filter(lambda x: x != '\n', text))
+text = list(filter(lambda x: x.isspace() or len(x) != 0, text))
 title = text[0]
 text = '\n'.join(text)
 text_file = f'/tmp/{title}'
-open(text_file, 'w').write(text)
+with open(text_file, 'w') as cur_file:
+    cur_file.write(text)
+    cur_file.close()
 
-reader_proc = subprocess.Popen(reader_command, stdout = subprocess.PIPE)
-convert_proc = subprocess.Popen(convert_command, stdin = reader_proc.stdout)
+reader_proc = subprocess.Popen(reader_command + [f'{text_file}'], stdout = subprocess.PIPE)
+convert_proc = subprocess.Popen(convert_command + [f'{title}.ogg'], stdin = reader_proc.stdout)
+#   TODO: finish adding other reader options
 
-while convert_proc.poll() is None:
+while reader_proc.poll() is None or convert_proc.poll() is None:
     pass
 
 #   Cleanup
