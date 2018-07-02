@@ -22,7 +22,7 @@
 
 from shutil import which
 from os import system, remove
-from shlex import quote, split
+from sys import exit as sys_exit
 import subprocess
 
 
@@ -30,12 +30,8 @@ import subprocess
 #   Settings
 ####################################################################################################
 
-#   Read settings in order: /etc/speak_to_file.conf, $HOME/config/speak_to_file.conf,
-#   $HOME/.speak_to_file.conf, (current dir)/speak_to_file.conf
-#   TODO: settings
-
-#   Command-line settings
-#   TODO: command-line settings
+#   Command-line options
+#   TODO:
 #   -h  print help
 #   -l  print license
 #   -o  set out file
@@ -48,12 +44,13 @@ import subprocess
 
 #   GPL Stuff
 gpl_notice = """
-    speak_to_file  Radoslav Dimitrov
-    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+    speak-to-file Copyright (C) 2018  Radoslav Dimitrov
+    This program comes with ABSOLUTELY NO WARRANTY.
     This is free software, and you are welcome to redistribute it
-    under certain conditions; type `show c' for details.
+    under certain conditions. For more information please visit: 
+    https://www.gnu.org/licenses/gpl-3.0.en.html
 """
-#   TODO: add terminal interaction: https://www.gnu.org/licenses/gpl-3.0.en.html
+print(gpl_notice)
 
 
 ####################################################################################################
@@ -64,28 +61,45 @@ gpl_notice = """
 #   TTS and conversion command
 supported_readers = ['espeak', 'festival', 'flite', 'mimic']
 supported_converters = ['ffmpeg', 'avconv', 'oggenc', 'opusenc', 'lame']
-installed_readers = list(filter(lambda x: which(x), supported_readers))
-installed_converters = list(filter(lambda x: which(x), supported_converters))
+installed_readers = zip(supported_readers, map(which, supported_readers))
+installed_converters = zip(supported_converters, map(which, supported_converters))
+
+if not installed_readers or not installed_converters:
+    if not installed_readers:
+        print(f'Error! No supported TTS engines found: {", ".join(supported_readers)}')
+    
+    if not installed_converters:
+        print(f'Error! No supported media converters found: {", ".join(supported_converters)}')
+
+    sys_exit(1)
+
+cur_reader = [(reader, path) for (reader, path) in installed_readers if path is not None][0]
+cur_converter = [(converter, path) for (converter, path) in installed_converters if path is not None][0]
 
 #   Command-line arguemnts for each supported platform
 reader_args = {
-    'espeak': '-s 195 --stdout -f',
+    'espeak': ['-s', '195', '--stdout', '-f'],
     'festival': None,
     'flite': None,
     'mimic': None
 }
 converter_args = {
-    'ffmpeg': '-hide_banner -i pipe:0 -c:v libvorbis -q:a 1 -ac 1 -ar 22050 -y',
-    'avconv': None,
-    'oggenc': None,
-    'opusenc': None,
-    'lame': None
+    'ffmpeg': ['-hide_banner', '-i', 'pipe:0',  '-c:a', 'libvorbis',  '-q:a', '1', '-ac', '1', '-ar', '22050', '-y'],
+    'avconv': ['-hide_banner', '-i', 'pipe:0',  '-c:a', 'libvorbis',  '-q:a', '1', '-ac', '1', '-ar', '22050', '-y'],
+    'oggenc': ['-q', '1', '--resample', '22050', '--downmix', '-', '-o'],
+    'opusenc': ['--bitrate', '32', '--vbr', '--downmix-mono', '-'],
+    'lame': ['-V', '8', '-m', 'm', '-']
 }
-cur_reader = installed_readers[0]
-cur_converter = installed_converters[0]
+converter_extensions = {
+    'ffmpeg': '.ogg',
+    'avconv': '.ogg',
+    'oggenc': '.ogg',
+    'opusenc': '.ogg',
+    'lame': '.mp3'
+}
 
-reader_command = [which('espeak'), '-s', '195', '--stdout', '-f']
-convert_command = [which('ffmpeg'), '-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-c:v', 'libvorbis', '-q:a', '1', '-ac', '1', '-ar', '22050', '-y']
+reader_command = [cur_reader[1]] + reader_args[cur_reader[0]]
+converter_command = [cur_converter[1]] + converter_args[cur_converter[0]]
 
 #   Stdin
 text = []
@@ -96,16 +110,25 @@ while True:
         break
 
 text = list(filter(lambda x: x.isspace() or len(x) != 0, text))
-title = text[0]
+title = text[0][:99]
 text = '\n'.join(text)
 text_file = f'/tmp/{title}'
-with open(text_file, 'w') as cur_file:
-    cur_file.write(text)
-    cur_file.close()
 
-reader_proc = subprocess.Popen(reader_command + [f'{text_file}'], stdout = subprocess.PIPE)
-convert_proc = subprocess.Popen(convert_command + [f'{title}.ogg'], stdin = reader_proc.stdout)
-#   TODO: finish adding other reader options
+#   Remove invalid characters from title
+invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+for item in invalid_chars:
+    title.replace(item, '')
+
+with open(text_file, 'w+') as file_object:
+    file_object.write(text)
+    file_object.close()
+
+#   Add filenames to commands
+reader_command.append(text_file)
+converter_command.append(''.join([title, converter_extensions[cur_converter[0]]]))
+
+reader_proc = subprocess.Popen(reader_command, stdin = None, stdout = subprocess.PIPE)
+convert_proc = subprocess.Popen(converter_command, stdin = reader_proc.stdout)
 
 while reader_proc.poll() is None or convert_proc.poll() is None:
     pass
