@@ -12,17 +12,19 @@ download the python file `speak-to-text.py`.
 The program automatically detects what TTS engines and audio converters are installed.
 
 Currently supported TTS engines:
-[X] espeak
-[ ] festival
-[ ] flite
-[ ] mimic
+
+- [X] espeak
+- [ ] festival
+- [ ] flite
+- [ ] mimic
 
 Supported audio converters:
-[X] ffmpeg
-[X] avconv
-[X] oggenc
-[X] opusenc
-[X] lame
+
+- [X] ffmpeg
+- [X] avconv
+- [X] oggenc
+- [X] opusenc
+- [X] lame
 
 ## Usage
 Run speak-to-file.py via the python interpreter: `$ python speak-to-file.py`. Paste the desired
