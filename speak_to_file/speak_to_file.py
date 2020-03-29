@@ -174,7 +174,9 @@ def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, 
         given_extension = os.path.splitext(out_file)[1]
         expected_extension = cur_converter["extension"]
 
-        if given_extension != expected_extension:
+        if given_extension == "":
+            out_file = f"{out_file}{expected_extension}"
+        elif given_extension != expected_extension:
             logger.warn(f"Given extension: {given_extension} not supported; replacing with {expected_extension}")
             out_file = out_file.replace(given_extension, expected_extension)
         else:
@@ -226,7 +228,7 @@ def main():
         out_dir, out_file = os.path.split(output)
         logger.debug(f"Out dir: {out_dir}")
         logger.debug(f"Out file: {out_file}")
-        assert os.path.exists(out_dir), f"Path does not exist: {out_dir}"
+        assert out_dir == "" or os.path.exists(out_dir), f"Path does not exist: {out_dir}"
         if out_file != "":
             assert not os.path.exists(output), f"File already exists: {output}"
     else:
