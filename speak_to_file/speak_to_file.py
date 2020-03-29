@@ -28,6 +28,7 @@ Usage: speak_to_file [options] [-]
 Options:
     -h, --help  Display this help message
     -l, --license  Display license
+    -v, --verbose  More output
     -o, --output=FILE  Set output file path
     --reader=READER  Set path to TTS application
     --converter=CONVERTER  Set path to file converter
@@ -38,7 +39,7 @@ Options:
 ####################################################################################################
 
 from shutil import which
-from os import system, remove
+import os
 import sys
 import subprocess
 from docopt import docopt
@@ -70,7 +71,7 @@ https://www.gnu.org/licenses/gpl-3.0.en.html
 #   Define external software
 ####################################################################################################
 
-def set_up():
+def set_up(reader = None, converter = None):
     #   Default behaviour: check if several open-source programs are available and pick one
     #   TTS and conversion command
     supported_readers = ['espeak', 'festival', 'flite', 'mimic']
@@ -84,6 +85,12 @@ def set_up():
         
         if not installed_converters:
             logger.error(f'Error! No supported media converters found: {", ".join(supported_converters)}')
+
+        if reader is not None and reader not in installed_reader:
+            logger.error(f"Desired reader not found or supported: {reader}")
+
+        if converter is not None and converte not in installed_convertes:
+            logger.error(f"Desired converter not found or supported: {converter}")
     
         sys.exit(1)
     
@@ -131,6 +138,9 @@ def read_stdin():
             text.append(input())
         except EOFError:
             break
+        except KeyboardInterrupt:
+            print()
+            sys.exit(0)
     
     text = list(filter(lambda x: x.isspace() or len(x) != 0, text))
     title = text[0][:99]
@@ -141,35 +151,97 @@ def read_stdin():
 
     #   Combine text list items to a single string
     text = '\n'.join(text)
-    text_file = f'/tmp/{title}'
+    text_file = os.path.join("/tmp/", title)
 
     return(text, title, text_file)
 
 
-def execute_read_convert(text, title, text_file, cur_reader, cur_converter):
+def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, cur_converter):
     with open(text_file, 'w+') as file_object:
         file_object.write(text)
         file_object.close()
     
+    out_dir = os.getcwd() if out_dir == "" else out_dir
+    logger.debug(f"Processed out_dir: {out_dir}")
+
+    if out_file == "":
+        out_file = f"{title}{cur_converter['extension']}"
+    else:
+        given_extension = os.path.splitext(out_file)[1]
+        expected_extension = cur_converter["extension"]
+
+        if given_extension != expected_extension:
+            logger.warn(f"Given extension: {given_extension} not supported; replacing with {expected_extension}")
+            out_file = out_file.replace(given_extension, expected_extension)
+        else:
+            out_file = out_file
+
+    logger.debug(f"Processed out_file: {out_file}")
+
+    final_out = os.path.join(out_dir, out_file)
+    assert not os.path.exists(final_out), f"File already exists: {final_out}"
+
     #   Add filenames to commands
     cur_reader["args"].append(text_file)
-    cur_converter["args"].append(''.join([title, cur_converter["extension"]]))
+    cur_converter["args"].append(final_out)
     
+    logger.debug(f"Final reader command: {[cur_reader['command'], *cur_reader['args']]}")
+    logger.debug(f"Final converter command: {[cur_converter['command'], *cur_converter['args']]}")
+
     reader_proc = subprocess.Popen([cur_reader["command"], *cur_reader["args"]], stdin = None, stdout = subprocess.PIPE)
     convert_proc = subprocess.Popen([cur_converter["command"], *cur_converter["args"]], stdin = reader_proc.stdout)
     
-    while reader_proc.poll() is None or convert_proc.poll() is None:
-        pass
-    
-    #   Cleanup
-    remove(text_file)
+    try:
+        while reader_proc.poll() is None or convert_proc.poll() is None:
+            pass
+    except Exception as e:
+        logger.error(e)
+    finally:
+        #   Cleanup
+        logger.debug(f"Removing temporary file: {text_file}")
+        os.remove(text_file)
 
 
 def main():
-    args = docopt(__doc__, sys.argv[1:], )
-    reader_command, converter_command = set_up()
+    args = docopt(__doc__, sys.argv[1:])
+    loglevel = logging.DEBUG if args["--verbose"] else logging.WARN
+    logger.setLevel(loglevel)
+    logger.debug(args)
+    
+    if args["--license"]:
+        print(GPL_NOTICE)
+        sys.exit(0)
+
+    #   Output destination validation
+    if args["--output"]:
+        output = args["--output"]
+        out_dir, out_file = os.path.split(output)
+        logger.debug(f"Out dir: {out_dir}")
+        logger.debug(f"Out file: {out_file}")
+        assert os.path.exists(out_dir), f"Path does not exist: {out_dir}"
+        if out_file != "":
+            assert not os.path.exists(output), f"File already exists: {output}"
+    else:
+        output = None
+        out_dir = ""
+        out_file = ""
+
+    if args["--reader"]:
+        logger.warn(f"Unimplemented: {args['--reader']}")
+
+    if args["--converter"]:
+        logger.warn(f"Unimplemented: {args['--reader']}")
+
+    logger.debug(f"Output split: {output}")
+
+    reader = args["--reader"]
+    converter = args["--converter"]
+
+    #   Execute
+    reader_command, converter_command = set_up(reader, converter)
     text, title, text_file = read_stdin()
-    execute_read_convert(text, title, text_file, reader_command, converter_command)
+    execute_read_convert(out_dir, out_file, text, title, text_file, reader_command, converter_command)
+    logger.debug("Finished execution")
 
 
 if __name__ == "__main__":
