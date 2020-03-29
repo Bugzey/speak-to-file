@@ -43,6 +43,14 @@ import sys
 import subprocess
 from docopt import docopt
 
+import logging
+logger = logging.getLogger(__name__)
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(msg)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 ####################################################################################################
 #   Globals
@@ -72,15 +80,12 @@ def set_up():
     
     if not installed_readers or not installed_converters:
         if not installed_readers:
-            print(f'Error! No supported TTS engines found: {", ".join(supported_readers)}')
+            logger.error(f'Error! No supported TTS engines found: {", ".join(supported_readers)}')
         
         if not installed_converters:
-            print(f'Error! No supported media converters found: {", ".join(supported_converters)}')
+            logger.error(f'Error! No supported media converters found: {", ".join(supported_converters)}')
     
         sys.exit(1)
-    
-    cur_reader = [(reader, path) for (reader, path) in installed_readers if path is not None][0]
-    cur_converter = [(converter, path) for (converter, path) in installed_converters if path is not None][0]
     
     #   Command-line arguemnts for each supported platform
     reader_args = {
@@ -104,10 +109,18 @@ def set_up():
         'lame': '.mp3'
     }
     
-    reader_command = [cur_reader[1]] + reader_args[cur_reader[0]]
-    converter_command = [cur_converter[1]] + converter_args[cur_converter[0]]
+    cur_reader = [{"command": reader, "path": path} for (reader, path) in installed_readers if path is not None][0]
+    cur_converter = [{"command": converter, "path": path} for (converter, path) in installed_converters if path is not None][0]
 
-    return (reader_command, converter_command)
+    #   Add appropriate args
+    cur_reader["args"] = reader_args[cur_reader["command"]]
+    cur_converter["args"] = converter_args[cur_converter["command"]]
+    cur_converter["extension"] = converter_extensions[cur_converter["command"]]
+
+    logger.debug(cur_reader)
+    logger.debug(cur_converter)
+    
+    return (cur_reader, cur_converter)
 
 
 def read_stdin():
@@ -130,26 +143,20 @@ def read_stdin():
     text = '\n'.join(text)
     text_file = f'/tmp/{title}'
 
-    result = {
-        "text": text,
-        "title": title,
-        "text_file": text_file
-    }
-
-    return(result)
+    return(text, title, text_file)
 
 
-def execute_read_convert():
+def execute_read_convert(text, title, text_file, cur_reader, cur_converter):
     with open(text_file, 'w+') as file_object:
         file_object.write(text)
         file_object.close()
     
     #   Add filenames to commands
-    reader_command.append(text_file)
-    converter_command.append(''.join([title, converter_extensions[cur_converter[0]]]))
+    cur_reader["args"].append(text_file)
+    cur_converter["args"].append(''.join([title, cur_converter["extension"]]))
     
-    reader_proc = subprocess.Popen(reader_command, stdin = None, stdout = subprocess.PIPE)
-    convert_proc = subprocess.Popen(converter_command, stdin = reader_proc.stdout)
+    reader_proc = subprocess.Popen([cur_reader["command"], *cur_reader["args"]], stdin = None, stdout = subprocess.PIPE)
+    convert_proc = subprocess.Popen([cur_converter["command"], *cur_converter["args"]], stdin = reader_proc.stdout)
     
     while reader_proc.poll() is None or convert_proc.poll() is None:
         pass
@@ -159,8 +166,10 @@ def execute_read_convert():
 
 
 def main():
-    args = docopt(__doc__, sys.argv[1:])
-    print(args)
+    args = docopt(__doc__, sys.argv[1:], )
+    reader_command, converter_command = set_up()
+    text, title, text_file = read_stdin()
+    execute_read_convert(text, title, text_file, reader_command, converter_command)
 
 
 if __name__ == "__main__":
