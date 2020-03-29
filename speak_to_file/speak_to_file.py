@@ -32,7 +32,11 @@ Options:
     -o, --output=FILE  Set output file path
     --reader=READER  Set path to TTS application
     --converter=CONVERTER  Set path to file converter
+    --version  Print version information
 """
+
+__version__ = "0.1.0"
+
 
 ####################################################################################################
 #   Libraries
@@ -210,6 +214,10 @@ def main():
     
     if args["--license"]:
         print(GPL_NOTICE)
+        sys.exit(0)
+
+    if args["--version"]:
+        print(__version__)
         sys.exit(0)
 
     #   Output destination validation
