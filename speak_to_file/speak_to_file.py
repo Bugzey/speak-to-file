@@ -76,6 +76,20 @@ https://www.gnu.org/licenses/gpl-3.0.en.html
 #   Define external software
 ####################################################################################################
 
+def replace_invalid_chars(input_string):
+    """
+    Replace characters that are not allowed as parts of file names in Windows
+
+    Inputs:
+        input_string: string to be cleansed
+    """
+    invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+    for item in invalid_chars:
+        input_string = input_string.replace(item, '')
+
+    return(input_string)
+
+
 def set_up(reader = None, converter = None):
     #   Default behaviour: check if several open-source programs are available and pick one
     #   TTS and conversion command
@@ -155,10 +169,7 @@ def read_stdin():
     text = list(filter(lambda x: x.isspace() or len(x) != 0, text))
     title = text[0][:99]
     #   Remove invalid characters from title
-    invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
-    for item in invalid_chars:
-        title.replace(item, '')
-
+    title = replace_invalid_chars(title)
     #   Combine text list items to a single string
     text = '\n'.join(text)
     text_file = os.path.join("/tmp/", title)
@@ -187,6 +198,8 @@ def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, 
             out_file = out_file.replace(given_extension, expected_extension)
         else:
             out_file = out_file
+
+    out_file = replace_invalid_chars(out_file)
 
     logger.debug(f"Processed out_file: {out_file}")
 
@@ -247,7 +260,6 @@ def main():
         out_file = ""
 
     logger.debug(f"Output split: {output}")
-
 
     #   Execute
     reader_command, converter_command = set_up(reader, converter)
