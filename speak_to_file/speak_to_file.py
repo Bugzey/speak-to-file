@@ -30,6 +30,7 @@ Options:
     -l, --license  Display license
     -v, --verbose  More output
     -o, --output=FILE  Set output file path
+    -y, --overwrite  Overwrite existing file
     --reader=READER  Set path to TTS application
     --converter=CONVERTER  Set path to file converter
     --version  Print version information
@@ -80,23 +81,18 @@ def set_up(reader = None, converter = None):
     #   TTS and conversion command
     supported_readers = ['espeak', 'festival', 'flite', 'mimic']
     supported_converters = ['ffmpeg', 'avconv', 'oggenc', 'opusenc', 'lame']
-    installed_readers = zip(supported_readers, map(which, supported_readers))
-    installed_converters = zip(supported_converters, map(which, supported_converters))
-    
-    if not installed_readers or not installed_converters:
-        if not installed_readers:
-            logger.error(f'Error! No supported TTS engines found: {", ".join(supported_readers)}')
-        
-        if not installed_converters:
-            logger.error(f'Error! No supported media converters found: {", ".join(supported_converters)}')
 
-        if reader is not None and reader not in installed_reader:
-            logger.error(f"Desired reader not found or supported: {reader}")
-
-        if converter is not None and converte not in installed_convertes:
-            logger.error(f"Desired converter not found or supported: {converter}")
+    installed_readers = {reader: {"command": reader, "path": which(reader)} for reader in supported_readers if which(reader) is not None}
+    installed_converters = {converter: {"command": converter, "path": which(converter)} for converter in supported_converters if which(converter) is not None}
     
-        sys.exit(1)
+    assert any(installed_readers), \
+        f"No supported readers installed: {', '.join(supported_readers)}"
+    assert any(installed_converters), \
+        f"No supported converters installed: {', '.join(supported_converters)}"
+    assert reader is None or reader in installed_readers, \
+        f"Desired reader not found or supported: {reader}"
+    assert converter is None or converter in installed_converters, \
+        f"Desired converter not found or supported: {converter}"
     
     #   Command-line arguemnts for each supported platform
     reader_args = {
@@ -119,10 +115,20 @@ def set_up(reader = None, converter = None):
         'opusenc': '.ogg',
         'lame': '.mp3'
     }
-    
-    cur_reader = [{"command": reader, "path": path} for (reader, path) in installed_readers if path is not None][0]
-    cur_converter = [{"command": converter, "path": path} for (converter, path) in installed_converters if path is not None][0]
 
+    logger.debug(installed_readers)
+    logger.debug(installed_converters)
+
+    if reader is None:
+        cur_reader = installed_readers[list(installed_readers.keys())[0]]
+    else:
+        cur_reader = installed_readers[reader]
+
+    if converter is None:
+        cur_converter = installed_converters[list(installed_converters.keys())[0]]
+    else:
+        cur_converter = installed_converters[converter]
+    
     #   Add appropriate args
     cur_reader["args"] = reader_args[cur_reader["command"]]
     cur_converter["args"] = converter_args[cur_converter["command"]]
@@ -160,7 +166,7 @@ def read_stdin():
     return(text, title, text_file)
 
 
-def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, cur_converter):
+def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, cur_converter, overwrite = False):
     with open(text_file, 'w+') as file_object:
         file_object.write(text)
         file_object.close()
@@ -185,7 +191,7 @@ def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, 
     logger.debug(f"Processed out_file: {out_file}")
 
     final_out = os.path.join(out_dir, out_file)
-    assert not os.path.exists(final_out), f"File already exists: {final_out}"
+    assert overwrite or not os.path.exists(final_out), f"File already exists: {final_out}"
 
     #   Add filenames to commands
     cur_reader["args"].append(text_file)
@@ -222,6 +228,10 @@ def main():
         print(__version__)
         sys.exit(0)
 
+    reader = args["--reader"]
+    converter = args["--converter"]
+    overwrite = args["--overwrite"]
+
     #   Output destination validation
     if args["--output"]:
         output = args["--output"]
@@ -230,27 +240,19 @@ def main():
         logger.debug(f"Out file: {out_file}")
         assert out_dir == "" or os.path.exists(out_dir), f"Path does not exist: {out_dir}"
         if out_file != "":
-            assert not os.path.exists(output), f"File already exists: {output}"
+            assert overwrite or not os.path.exists(output), f"File already exists: {output}"
     else:
         output = None
         out_dir = ""
         out_file = ""
 
-    if args["--reader"]:
-        logger.warn(f"Unimplemented: {args['--reader']}")
-
-    if args["--converter"]:
-        logger.warn(f"Unimplemented: {args['--reader']}")
-
     logger.debug(f"Output split: {output}")
 
-    reader = args["--reader"]
-    converter = args["--converter"]
 
     #   Execute
     reader_command, converter_command = set_up(reader, converter)
     text, title, text_file = read_stdin()
-    execute_read_convert(out_dir, out_file, text, title, text_file, reader_command, converter_command)
+    execute_read_convert(out_dir, out_file, text, title, text_file, reader_command, converter_command, overwrite)
     logger.debug("Finished execution")
 
 
