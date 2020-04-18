@@ -36,9 +36,6 @@ Options:
     --version  Print version information
 """
 
-__version__ = "0.1.0"
-
-
 ####################################################################################################
 #   Libraries
 ####################################################################################################
@@ -90,6 +87,33 @@ def replace_invalid_chars(input_string):
     return(input_string)
 
 
+def glue_args(args_dict):
+    """Glue together command args for use in subprocess.Popen
+
+    Inputs:
+        args_dict: dictionary of arguments to be passed on
+
+    Returns:
+        List of arguments in input dict keys and items are a sequence,
+            and only keys if the keys' value is Boolean
+    """
+    result_list = [[key, value] if value != True else [key] for key, value in args_dict.items() if value != False]
+    result = [item for pair in result_list for item in pair]
+    return(result)
+
+
+def split_args(args_string):
+    arg_pairs = args_string.split(",")
+    args_list = [item.split("=") for item in arg_pairs]
+
+    assert max(map(len, args_list)) == 2, \
+        "Invalid argument string: {args_string}"
+
+    args_dict = {item[0]: True if item[1] == "" else item[1] for item in args_list}
+
+    return(args_dict)
+
+
 def set_up(reader = None, converter = None):
     #   Default behaviour: check if several open-source programs are available and pick one
     #   TTS and conversion command
@@ -110,17 +134,17 @@ def set_up(reader = None, converter = None):
     
     #   Command-line arguemnts for each supported platform
     reader_args = {
-        'espeak': ['-s', '195', '--stdout', '-f'],
-        'festival': None,
-        'flite': None,
-        'mimic': None
+        'espeak': {'-s': '195', '--stdout': True},
+        'festival': {},
+        'flite': {},
+        'mimic': {}
     }
     converter_args = {
-        'ffmpeg': ['-hide_banner', '-i', 'pipe:0',  '-c:a', 'libvorbis',  '-q:a', '1', '-ac', '1', '-ar', '22050', '-y'],
-        'avconv': ['-hide_banner', '-i', 'pipe:0',  '-c:a', 'libvorbis',  '-q:a', '1', '-ac', '1', '-ar', '22050', '-y'],
-        'oggenc': ['-q', '1', '--resample', '22050', '--downmix', '-', '-o'],
-        'opusenc': ['--bitrate', '32', '--vbr', '--downmix-mono', '-'],
-        'lame': ['-V', '8', '-m', 'm', '-']
+        'ffmpeg': {'-hide_banner': True, '-i': 'pipe:0',  '-c:a': 'libvorbis',  '-q:a': '1', '-ac': '1', '-ar': '22050', '-y': True},
+        'avconv': {'-hide_banner': True, '-i': 'pipe:0',  '-c:a': 'libvorbis',  '-q:a': '1', '-ac': '1', '-ar': '22050', '-y': True},
+        'oggenc': {'-q': '1', '--resample': '22050', '--downmix': True, '-': True},
+        'opusenc': {'--bitrate': '32', '--vbr': True, '--downmix-mono': True, '-': True},
+        'lame': {'-V': '8', '-m': 'm', '-': True}
     }
     converter_extensions = {
         'ffmpeg': '.ogg',
@@ -128,6 +152,17 @@ def set_up(reader = None, converter = None):
         'oggenc': '.ogg',
         'opusenc': '.ogg',
         'lame': '.mp3'
+    }
+    add_reader_input = {
+        # how to modify reader_args to include a named output file
+        "espeak": lambda x, y: {**x, **{"-f": y}},
+    }
+    add_converter_output = {
+        "ffmpeg": lambda x, y :{**x, **{"--": y}},
+        "avconv": lambda x, y :{**x, **{"--": y}},
+        "oggenc": lambda x, y: {**x, **{"-o": y}},
+        "opusenc": lambda x, y :{**x, **{"--": y}},
+        "lame": lambda x, y :{**x, **{"": y}},
     }
 
     logger.debug(installed_readers)
@@ -148,11 +183,14 @@ def set_up(reader = None, converter = None):
     cur_converter["args"] = converter_args[cur_converter["command"]]
     cur_converter["extension"] = converter_extensions[cur_converter["command"]]
 
+    #   Add input / output function
+    cur_reader["add_input"] = add_reader_input[cur_reader["command"]]
+    cur_converter["add_output"] = add_converter_output[cur_converter["command"]]
+
     logger.debug(cur_reader)
     logger.debug(cur_converter)
     
     return (cur_reader, cur_converter)
-
 
 def read_stdin():
     #   Stdin
@@ -168,8 +206,10 @@ def read_stdin():
     
     text = list(filter(lambda x: x.isspace() or len(x) != 0, text))
     title = text[0][:99]
+
     #   Remove invalid characters from title
     title = replace_invalid_chars(title)
+
     #   Combine text list items to a single string
     text = '\n'.join(text)
     text_file = os.path.join("/tmp/", title)
@@ -207,20 +247,21 @@ def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, 
     assert overwrite or not os.path.exists(final_out), f"File already exists: {final_out}"
 
     #   Add filenames to commands
-    cur_reader["args"].append(text_file)
-    cur_converter["args"].append(final_out)
+    cur_reader["args"] = cur_reader["add_input"](cur_reader["args"], text_file)
+    cur_converter["args"] = cur_converter["add_output"](cur_converter["args"], final_out)
     
-    logger.debug(f"Final reader command: {[cur_reader['command'], *cur_reader['args']]}")
-    logger.debug(f"Final converter command: {[cur_converter['command'], *cur_converter['args']]}")
+    logger.debug(f"Final reader command: {[cur_reader['command'], glue_args(cur_reader['args'])]}")
+    logger.debug(f"Final converter command: {[cur_converter['command'], glue_args(cur_converter['args'])]}")
 
-    reader_proc = subprocess.Popen([cur_reader["command"], *cur_reader["args"]], stdin = None, stdout = subprocess.PIPE)
-    convert_proc = subprocess.Popen([cur_converter["command"], *cur_converter["args"]], stdin = reader_proc.stdout)
+    reader_proc = subprocess.Popen([cur_reader["command"]] + glue_args(cur_reader["args"]), stdout = subprocess.PIPE)
+    convert_proc = subprocess.Popen([cur_converter["command"]] + glue_args(cur_converter["args"]), stdin = reader_proc.stdout)
     
     try:
         while reader_proc.poll() is None or convert_proc.poll() is None:
             pass
     except Exception as e:
         logger.error(e)
+        raise e
     finally:
         #   Cleanup
         logger.debug(f"Removing temporary file: {text_file}")
