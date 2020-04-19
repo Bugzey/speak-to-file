@@ -32,7 +32,6 @@ Options:
     --reader-args=ARGS     Pass custom arguments to reader in the form "-key=value"
     --converter=CONVERTER  Set path to file converter
     --converter-args=ARGS  Pass custom arguments to converter in the form "-key=value"
-    --version              Print version information
 ```
 
 ## Current features
