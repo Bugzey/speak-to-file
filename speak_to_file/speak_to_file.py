@@ -50,6 +50,7 @@ from docopt import docopt
 
 import logging
 logger = logging.getLogger(__name__)
+from speak_to_file.__version__ import __version__
 
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(msg)s")
