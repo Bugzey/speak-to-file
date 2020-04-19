@@ -35,7 +35,6 @@ Options:
     --reader-args=ARGS     Pass custom arguments to reader in the form "-key=value"
     --converter=CONVERTER  Set path to file converter
     --converter-args=ARGS  Pass custom arguments to converter in the form "-key=value"
-    --version              Print version information
 """
 
 ####################################################################################################
@@ -50,7 +49,6 @@ from docopt import docopt
 
 import logging
 logger = logging.getLogger(__name__)
-from speak_to_file.__version__ import __version__
 
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(msg)s")
@@ -300,10 +298,6 @@ def main():
     
     if args["--license"]:
         print(GPL_NOTICE)
-        sys.exit(0)
-
-    if args["--version"]:
-        print(__version__)
         sys.exit(0)
 
     reader = args["--reader"]
