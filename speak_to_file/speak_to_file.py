@@ -26,14 +26,16 @@
 Usage: speak_to_file [options] [-]
 
 Options:
-    -h, --help  Display this help message
-    -l, --license  Display license
-    -v, --verbose  More output
-    -o, --output=FILE  Set output file path
-    -y, --overwrite  Overwrite existing file
-    --reader=READER  Set path to TTS application
+    -h, --help             Display this help message
+    -l, --license          Display license
+    -v, --verbose          More output
+    -o, --output=FILE      Set output file path
+    -y, --overwrite        Overwrite existing file
+    --reader=READER        Set path to TTS application
+    --reader-args=ARGS     Pass custom arguments to reader in the form "-key=value"
     --converter=CONVERTER  Set path to file converter
-    --version  Print version information
+    --converter-args=ARGS  Pass custom arguments to converter in the form "-key=value"
+    --version              Print version information
 """
 
 ####################################################################################################
@@ -103,6 +105,20 @@ def glue_args(args_dict):
 
 
 def split_args(args_string):
+    """
+    Parse input downstream commandline arguments and split them into something
+        resembling the output from docopt
+
+    Inputs:
+        args_string: string of arguments, formatted "key1=value1,key2=value2", 
+            it is left for the user to pass short or long arguments correctly
+            e.g. to change the language in espeak: "-v=de"
+    Outputs:
+        Dictionary of keys and items
+
+    Raises:
+        AssertionError if any argument has more than one key/item delimeter "="
+    """
     arg_pairs = args_string.split(",")
     args_list = [item.split("=") for item in arg_pairs]
 
@@ -217,7 +233,7 @@ def read_stdin():
     return(text, title, text_file)
 
 
-def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, cur_converter, overwrite = False):
+def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, cur_converter, overwrite = False, reader_args = None, converter_args = None):
     with open(text_file, 'w+') as file_object:
         file_object.write(text)
         file_object.close()
@@ -246,6 +262,13 @@ def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, 
     final_out = os.path.join(out_dir, out_file)
     assert overwrite or not os.path.exists(final_out), f"File already exists: {final_out}"
 
+    #   Add custom arguments to commands
+    if reader_args is not None:
+        cur_reader["args"] = {**cur_reader["args"], **reader_args}
+
+    if converter_args is not None:
+        cur_converter["args"] = {**cur_converter["args"], **converter_args}
+
     #   Add filenames to commands
     cur_reader["args"] = cur_reader["add_input"](cur_reader["args"], text_file)
     cur_converter["args"] = cur_converter["add_output"](cur_converter["args"], final_out)
@@ -257,10 +280,10 @@ def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, 
     convert_proc = subprocess.Popen([cur_converter["command"]] + glue_args(cur_converter["args"]), stdin = reader_proc.stdout)
     
     try:
-        while reader_proc.poll() is None or convert_proc.poll() is None:
-            pass
+        convert_proc.wait()
     except Exception as e:
         logger.error(e)
+        convert_proc.kill()
         raise e
     finally:
         #   Cleanup
@@ -302,10 +325,25 @@ def main():
 
     logger.debug(f"Output split: {output}")
 
+    #   Custom args processing
+    if args["--reader-args"] is not None:
+        reader_args = split_args(args["--reader-args"])
+    else:
+        reader_args = None
+
+    logger.debug(f"reader_args: {reader_args}")
+
+    if args["--converter-args"] is not None:
+        converter_args = split_args(args["--converter-args"])
+    else:
+        converter_args = None
+
+    logger.debug(f"converter_args: {converter_args}")
+
     #   Execute
     reader_command, converter_command = set_up(reader, converter)
     text, title, text_file = read_stdin()
-    execute_read_convert(out_dir, out_file, text, title, text_file, reader_command, converter_command, overwrite)
+    execute_read_convert(out_dir, out_file, text, title, text_file, reader_command, converter_command, overwrite, reader_args, converter_args)
     logger.debug("Finished execution")
 
 

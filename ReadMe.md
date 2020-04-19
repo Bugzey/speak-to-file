@@ -23,13 +23,16 @@ Speak to file
 Usage: speak_to_file [options] [-]
 
 Options:
-    -h, --help  Display this help message
-    -l, --license  Display license
-    -v, --verbose  More output
-    -o, --output=FILE  Set output file path
-    --reader=READER  Set path to TTS application
+    -h, --help             Display this help message
+    -l, --license          Display license
+    -v, --verbose          More output
+    -o, --output=FILE      Set output file path
+    -y, --overwrite        Overwrite existing file
+    --reader=READER        Set path to TTS application
+    --reader-args=ARGS     Pass custom arguments to reader in the form "-key=value"
     --converter=CONVERTER  Set path to file converter
-    --version  Print version information
+    --converter-args=ARGS  Pass custom arguments to converter in the form "-key=value"
+    --version              Print version information
 ```
 
 ## Current features
@@ -40,6 +43,8 @@ Options:
   - configurable output directory and file name
 - Long filenames are clipped
 - Invalid characters in the file name are deleted
+- Allow selection of and passing arguments to TTS engines and audio converters
+- Unit tests
 
 The program automatically detects what TTS engines and audio converters are installed.
 
@@ -59,11 +64,11 @@ Supported audio converters:
 - [X] lame
 
 
-## Planned features
-- More TTS engines
-- Allow selection of and passing arguments to TTS engines and audio converters
-- Unit tests
+## Changelog
+Refer to [Changelog](./CHANGELOG.md)
+
 
 ## Licence
 Speak-to-file is licenced under the GNU General Public Licence version 3 (GPLv3). For more information
 visit <https://www.gnu.org/licenses/gpl-3.0.en.html>.
+

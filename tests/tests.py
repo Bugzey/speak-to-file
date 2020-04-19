@@ -37,6 +37,11 @@ def fun_test(fun, args, output):
     
 scenarios = [
     {
+        "fun": replace_invalid_chars,
+        "input": ["""<>:"\|?*"""],
+        "output": ""
+    },
+    {
         "fun": glue_args,
         "input": [{'-hide_banner': True, '-i': 'pipe:0',  '-c:a': 'libvorbis',  '-q:a': '1', '-ac': '1', '-ar': '22050', '-y': True}],
         "output": ['-hide_banner', '-i', 'pipe:0', '-c:a', 'libvorbis', '-q:a', '1', '-ac', '1', '-ar', '22050', '-y']
