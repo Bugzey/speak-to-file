@@ -1,5 +1,8 @@
 from speak_to_file.speak_to_file import *
 
+logger = logging.getLogger(__name__)
+logger.warning("Boop")
+
 def fun_test(fun, args, output):
     if type(args) == list:
         try:
