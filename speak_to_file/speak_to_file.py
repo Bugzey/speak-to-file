@@ -41,11 +41,13 @@ Options:
 #   Libraries
 ####################################################################################################
 
-from shutil import which
 import os
-import sys
+import re
 import subprocess
+import sys
+import tempfile
 from docopt import docopt
+from shutil import which
 
 import logging
 logger = logging.getLogger(__name__)
@@ -224,18 +226,21 @@ def read_stdin():
 
     #   Remove invalid characters from title
     title = replace_invalid_chars(title)
+    title = re.sub("^\s*", "", title)
+    title = re.sub("\s*$", "", title)
 
     #   Combine text list items to a single string
     text = '\n'.join(text)
-    text_file = os.path.join("/tmp/", title)
 
-    return(text, title, text_file)
+    return(text, title)
 
 
-def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, cur_converter, overwrite = False, reader_args = None, converter_args = None):
-    with open(text_file, 'w+') as file_object:
-        file_object.write(text)
-        file_object.close()
+def execute_read_convert(out_dir, out_file, text, title, cur_reader, cur_converter, overwrite = False, reader_args = None, converter_args = None):
+
+    text_file = tempfile.NamedTemporaryFile(mode = "r+")
+    text_file_name = text_file.name
+    text_file.write(text)
+    text_file.seek(0)
     
     out_dir = os.getcwd() if out_dir == "" else out_dir
     logger.debug(f"Processed out_dir: {out_dir}")
@@ -249,7 +254,7 @@ def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, 
         if given_extension == "":
             out_file = f"{out_file}{expected_extension}"
         elif given_extension != expected_extension:
-            logger.warn(f"Given extension: {given_extension} not supported; replacing with {expected_extension}")
+            logger.warning(f"Given extension: {given_extension} not supported; replacing with {expected_extension}")
             out_file = out_file.replace(given_extension, expected_extension)
         else:
             out_file = out_file
@@ -269,7 +274,7 @@ def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, 
         cur_converter["args"] = {**cur_converter["args"], **converter_args}
 
     #   Add filenames to commands
-    cur_reader["args"] = cur_reader["add_input"](cur_reader["args"], text_file)
+    cur_reader["args"] = cur_reader["add_input"](cur_reader["args"], text_file_name)
     cur_converter["args"] = cur_converter["add_output"](cur_converter["args"], final_out)
     
     logger.debug(f"Final reader command: {[cur_reader['command'], glue_args(cur_reader['args'])]}")
@@ -286,8 +291,8 @@ def execute_read_convert(out_dir, out_file, text, title, text_file, cur_reader, 
         raise e
     finally:
         #   Cleanup
-        logger.debug(f"Removing temporary file: {text_file}")
-        os.remove(text_file)
+        logger.debug(f"Removing temporary file: {text_file_name}")
+        text_file.close()
 
 
 def main():
@@ -337,8 +342,8 @@ def main():
 
     #   Execute
     reader_command, converter_command = set_up(reader, converter)
-    text, title, text_file = read_stdin()
-    execute_read_convert(out_dir, out_file, text, title, text_file, reader_command, converter_command, overwrite, reader_args, converter_args)
+    text, title = read_stdin()
+    execute_read_convert(out_dir, out_file, text, title, reader_command, converter_command, overwrite, reader_args, converter_args)
     logger.debug("Finished execution")
 
 
