@@ -82,6 +82,9 @@ def replace_invalid_chars(input_string):
 
     Inputs:
         input_string: string to be cleansed
+
+    Returns:
+        Cleaned up string
     """
     invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
     for item in invalid_chars:
@@ -132,6 +135,23 @@ def split_args(args_string):
 
 
 def set_up(reader = None, converter = None):
+    """
+    Assess the system for installed reader and converter programs and prepare 
+        command line arguments according to a preset hierarchy
+
+    Inputs:
+        reader: name or path to a reader executable (default: None)
+        converter: name or path to a converter executable (default: None)
+
+    Returns:
+        A prepared dict with the reader command, arguments and output file name
+            for use in later functions
+
+    Raises:
+        AssertionError if no supported reader or converter programs are installed
+        AssertionError if custom reader or converter commands are provided if
+            the reader or converter is unsupported or not installed
+    """
     #   Default behaviour: check if several open-source programs are available and pick one
     #   TTS and conversion command
     supported_readers = ['espeak', 'festival', 'flite', 'mimic']
@@ -210,6 +230,16 @@ def set_up(reader = None, converter = None):
     return (cur_reader, cur_converter)
 
 def read_stdin():
+    """
+    Parse standard input while properly handling EOF and
+        keyboard interrupt, and build the title from the first line of the txt
+
+    Inputs:
+        None
+
+    Returns:
+        A tuple of the input text and a parsed title
+    """
     #   Stdin
     text = []
     while True:
@@ -236,6 +266,23 @@ def read_stdin():
 
 
 def execute_read_convert(out_dir, out_file, text, title, cur_reader, cur_converter, overwrite = False, reader_args = None, converter_args = None):
+    """
+    Create a temporary file, write the input text, read the text and
+        pass it to the reader, and then to the converter commands.
+
+    Inputs:
+        out_dir: final output directory
+        out_file: output file name
+        text: string with the text to be passed to the reader
+        title: parsed text title without a file extension
+        cur_reader: reader argument dict prepared by set_up()
+        cur_converter: converter argument dictionary prepared by set_up()
+        overwrite: whether to overwrite an existing file (default: False)
+        reader_args: optional additional reader command-line arguments in the form
+            of "--option=value,--option2=value2"
+        converter_args: optional additional converter command-line arguments in the
+            form of "--option=value,--option2=value2"
+    """
 
     text_file = tempfile.NamedTemporaryFile(mode = "r+")
     text_file_name = text_file.name
@@ -296,6 +343,14 @@ def execute_read_convert(out_dir, out_file, text, title, cur_reader, cur_convert
 
 
 def main():
+    """
+    Main function - parse command-line arguments, prepare alternatives
+        depending on which arguments are passed or whether output files already
+        exist
+
+    Returns:
+        None
+    """
     args = docopt(__doc__, sys.argv[1:])
     loglevel = logging.DEBUG if args["--verbose"] else logging.WARN
     logger.setLevel(loglevel)

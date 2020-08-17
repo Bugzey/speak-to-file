@@ -1,65 +1,32 @@
 from speak_to_file.speak_to_file import *
+import unittest
 
 logger = logging.getLogger(__name__)
 logger.warning("Boop")
 
-def fun_test(fun, args, output):
-    if type(args) == list:
-        try:
-            fun_result = fun(*args)
-            exception = None
-        except Exception as e:
-            fun_result = None
-            exception = e
-    elif type(args) == dict:
-        try:
-            fun_result = fun(**args)
-            exception = None
-        except Exception as e:
-            fun_result = None
-            exception = e
-    else:
-        try:
-            fun_result = fun()
-            exception = None
-        except Exception as e:
-            fun_result = None
-            exception = e
+class ReplaceInvalidCharsTestCase(unittest.TestCase):
+    def test_invalid_chars(self):
+        input_chars = """<>:"\|?*"""
+        self.assertEqual("", replace_invalid_chars(input_chars))
+        
+class GlueArgsTestCase(unittest.TestCase):
+    def test_glue_args(self):
+        fun_input = {'-hide_banner': True, '-i': 'pipe:0',  '-c:a': 'libvorbis',  '-q:a': '1', '-ac': '1', '-ar': '22050', '-y': True}
+        fun_output = ['-hide_banner', '-i', 'pipe:0', '-c:a', 'libvorbis', '-q:a', '1', '-ac', '1', '-ar', '22050', '-y']
+        self.assertEqual(fun_output, glue_args(fun_input))
 
-    outcome = output == fun_result
+class SplitArgsTestCase(unittest.TestCase):
+    def test_split_args(self):
+        fun_input = "-hide_banner=,-i=pipe:0,-c:a=libvorbis,-q:a=1,-ac=1,-ar=22050,-y="
+        fun_output = {'-hide_banner': True, '-i': 'pipe:0',  '-c:a': 'libvorbis',  '-q:a': '1', '-ac': '1', '-ar': '22050', '-y': True}
+        self.assertEqual(fun_output, split_args(fun_input))
 
-    result = {
-        "Function": fun.__name__, 
-        "Result": "Error" if exception is not None else "Success" if outcome else "Failure",
-        "Expected": output,
-        "Got": fun_result,
-        "Exception": exception
-    }
+class ReadStdInTestCase(unittest.TestCase):
+    pass
 
-    return(result)
-    
-scenarios = [
-    {
-        "fun": replace_invalid_chars,
-        "input": ["""<>:"\|?*"""],
-        "output": ""
-    },
-    {
-        "fun": glue_args,
-        "input": [{'-hide_banner': True, '-i': 'pipe:0',  '-c:a': 'libvorbis',  '-q:a': '1', '-ac': '1', '-ar': '22050', '-y': True}],
-        "output": ['-hide_banner', '-i', 'pipe:0', '-c:a', 'libvorbis', '-q:a', '1', '-ac', '1', '-ar', '22050', '-y']
-    },
-    {
-        "fun": split_args,
-        "input": ["-hide_banner=,-i=pipe:0,-c:a=libvorbis,-q:a=1,-ac=1,-ar=22050,-y="],
-        "output": {'-hide_banner': True, '-i': 'pipe:0',  '-c:a': 'libvorbis',  '-q:a': '1', '-ac': '1', '-ar': '22050', '-y': True}
-    }
-]
+class ExecuteReadConvertTestCase(unittest.TestCase):
+    pass
 
 
 if __name__ == "__main__":
-    result = []
-    for scenario in scenarios:
-        result.append(fun_test(fun = scenario["fun"], args = scenario["input"], output = scenario["output"]))
-
-    print(*result, sep = "\n")
+    unittest.main()
