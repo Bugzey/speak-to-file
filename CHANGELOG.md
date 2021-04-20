@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - More TTS engines
 
+##	[v0.4.0] - 2021-04-20
+###	Added
+- Build package using `setuptools` and following [PEP 517](https://www.python.org/dev/peps/pep-0517/)
+
+##	[v0.3.1] - 2020-07-16
+###	Fixed
+- Use system-agnostic temporary file location
+
 ##	[v0.3.0] - 2020-04-19
 ###	Added:
 - Allow selection of and passing arguments to TTS engines and audio converters
@@ -26,3 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default output to the current working directory
 - Long filenames are clipped
 - Invalid characters in the file name are deleted
+
+[v0.4.0]: https://github.com/Bugzey/speak-to-file/releases/tag/v0.4.0
+
+[v0.3.1]: https://github.com/Bugzey/speak-to-file/releases/tag/v0.3.1
+
+[v0.3.0]: https://github.com/Bugzey/speak-to-file/releases/tag/v0.3.0
+

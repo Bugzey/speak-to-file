@@ -2,7 +2,7 @@
 #   Speak-to-file
 #   Read stdin, pass to espeak, convert to ogg
 #   
-#   Copyright (C) 2018 Radoslav Dimitrov
+#   Copyright (C) 2021 Radoslav Dimitrov
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ Options:
     --reader-args=ARGS     Pass custom arguments to reader in the form "-key=value"
     --converter=CONVERTER  Set path to file converter
     --converter-args=ARGS  Pass custom arguments to converter in the form "-key=value"
+    --version              Print program version and quit
 """
 
 ####################################################################################################
@@ -57,6 +58,8 @@ formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(module)s - %(func
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+from speak_to_file.__version__ import __version__
+
 
 ####################################################################################################
 #   Globals
@@ -64,7 +67,7 @@ logger.addHandler(handler)
 
 #   GPL Notice
 GPL_NOTICE = """
-speak-to-file Copyright (C) 2018  Radoslav Dimitrov
+speak-to-file Copyright (C) 2021  Radoslav Dimitrov
 This program comes with ABSOLUTELY NO WARRANTY.
 This is free software, and you are welcome to redistribute it
 under certain conditions. For more information please visit: 
@@ -355,9 +358,13 @@ def main():
     loglevel = logging.DEBUG if args["--verbose"] else logging.WARN
     logger.setLevel(loglevel)
     logger.debug(args)
-    
+
     if args["--license"]:
         print(GPL_NOTICE)
+        sys.exit(0)
+
+    if args["--version"]:
+        print(__version__)
         sys.exit(0)
 
     reader = args["--reader"]

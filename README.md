@@ -1,7 +1,9 @@
 #	Speak-to-text micro application
 
 ## Description
-Single-command application that passes a long text to a user's preferred Text-To-Speech (TTS) program. The output is then automatically routed to a separately installed audio conversion program, and the final result is an audio file in the current directory.
+Single-command application that passes a long text to a user's preferred Text-To-Speech (TTS)
+program. The output is then automatically routed to a separately installed audio conversion program,
+and the final result is an audio file in the current directory.
 
 
 ## Installation
@@ -9,13 +11,21 @@ Clone the repository via git or download the project zip file:
 ```
 $ git clone https://github.com/Bugzey/speak-to-file.git
 ```
+
+Buld using the `build` module:
+```
+$ python -m build --wheel
+```
+
 Install the module through pip:
 ```
-$ pip install /path/to/download/speak-to-file/
+$ pip install dist/*.whl
 ```
 
 ##  Usage
-Run speak-to-file.py via the python interpreter: `$ python speak-to-file.py` or invoke it as a Python module `$ python -m speak_to_file`, and paste the desired text to the console. When no command line options are given, then an audio file named after the first non-whitespace line from the input text is created in the working directory.
+Upon installation the program becomes available as a system-wide script invoked via `$
+speak_to_file`. When no command line options are given, then an audio file named after the first
+non-whitespace line from the input text is created in the working directory.
 
 ```
 Speak to file
@@ -32,6 +42,7 @@ Options:
     --reader-args=ARGS     Pass custom arguments to reader in the form "-key=value"
     --converter=CONVERTER  Set path to file converter
     --converter-args=ARGS  Pass custom arguments to converter in the form "-key=value"
+    --version              Print program version and quit
 ```
 
 ## Current features
@@ -68,6 +79,6 @@ Refer to [Changelog](./CHANGELOG.md)
 
 
 ## Licence
-Speak-to-file is licenced under the GNU General Public Licence version 3 (GPLv3). For more information
-visit <https://www.gnu.org/licenses/gpl-3.0.en.html>.
+Speak-to-file is licenced under the GNU General Public Licence version 3 (GPLv3). For more
+information visit <https://www.gnu.org/licenses/gpl-3.0.en.html>.
 
